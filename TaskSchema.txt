@@ -1,0 +1,71 @@
+┌─────────────────────────────────────────────────────────────┐
+│                           Task                              │
+├─────────────────────────────────────────────────────────────┤
+│  id:       TaskId         (value class над UUID)            │
+│  text:     String         (не пустой, ≤ 1000)               │
+│  status:   TaskStatus     (NEW | IN_PROGRESS | DONE |       │
+│                            CANCELED)                        │
+│  dueDate:  LocalDate?     (если задан — не в прошлом)       │
+└─────────────────────────────────────────────────────────────┘
+
+СОЗДАНИЕ
+   factory(text, dueDate?) ──▶ Task(status = NEW)
+                               события: TaskCreated
+
+
+ЖИЗНЕННЫЙ ЦИКЛ СТАТУСОВ
+
+                    start
+          ┌─────────────────────▶ ┌──────────────┐
+          │                       │              │
+   ┌──────┴──────┐   complete     │ IN_PROGRESS  │ ──complete──┐
+   │     NEW     │──────────────▶ │              │             │
+   │             │                └──────┬───────┘             ▼
+   └──┬──┬───────┘                       │                ┌────────┐
+      │  │                               │  cancel        │  DONE  │◀─┐
+      │  │   cancel                      ▼                └────┬───┘  │
+      │  └─────────────────────▶  ┌────────────┐               │      │
+      │                           │  CANCELED  │               │      │
+      │           complete        │ (терминал) │               │      │
+      └─────────────────────────▶ └────────────┘               │      │
+                                                               │      │
+                                     reopen                    │      │
+                                  ◀──────────────────────────  ┘      │
+                                                                      │
+      (DONE → IN_PROGRESS — единственный обратный переход)  ──────────┘
+
+
+КОМАНДЫ ПО ИСХОДНОМУ СТАТУСУ
+
+  NEW          ▸ start · complete · cancel
+               ▸ editText · reschedule · clearDueDate
+               ▸ delete
+
+  IN_PROGRESS  ▸ complete · cancel
+               ▸ editText · reschedule · clearDueDate
+               ▸ delete
+
+  DONE         ▸ reopen
+               ▸ editText
+               ▸ delete
+
+  CANCELED     ▸ editText
+               ▸ delete
+               (переходов между статусами нет)
+
+
+СОБЫТИЯ
+   TaskCreated    ◂  создание
+   TaskStarted    ◂  start
+   TaskCompleted  ◂  complete
+   TaskCancelled  ◂  cancel
+   TaskReopened   ◂  reopen
+   TaskDeleted    ◂  delete
+
+   editText / reschedule / clearDueDate — событий не публикуют
+   (коррекция ошибки ввода, не часть жизненного цикла)
+
+
+ИНВАРИАНТЫ ПОЛЕЙ (применяются везде, где поле устанавливается)
+   text     не пустой, длина ≤ 1000 символов
+   dueDate  если задан — не в прошлом
